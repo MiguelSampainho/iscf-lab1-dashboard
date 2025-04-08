@@ -1,8 +1,8 @@
-// src/app/page.tsx
 "use client"; // Required for hooks like useState, useEffect in App Router
 
-import React, { useState, useEffect, ChangeEvent } from 'react'; // Corrected React import
-import { database } from '../../lib/firebase'; // Adjust path if needed
+import React, { useState, useEffect, ChangeEvent } from 'react';
+import { database } from '../../lib/firebase';
+
 // Import Firebase functions needed for reading and writing
 import { ref, onValue, off, query, orderByChild, limitToLast, get, set, startAt, DataSnapshot } from 'firebase/database';
 
@@ -17,7 +17,7 @@ import {
   Title,
   Tooltip,
   Legend,
-  type ChartData, // Import ChartData type
+  type ChartData, 
 } from 'chart.js';
 
 // Register Chart.js components needed for the Line chart
@@ -33,7 +33,7 @@ ChartJS.register(
 
 // --- Define Interfaces for Data Structures ---
 
-// Basic interface for weather data (replace 'any')
+// Basic interface for weather data 
 interface WeatherInfo {
   description?: string;
   icon?: string;
@@ -60,7 +60,7 @@ interface AccelEntry {
   x: number;
   y: number;
   z: number;
-  city?: string; // Optional city field
+  city?: string; 
   weather_data?: WeatherData | null; // Use specific interface or null
 }
 
@@ -138,14 +138,14 @@ export default function Home() {
   useEffect(() => {
     console.log(`Setting up Firebase listener for last ${FIXED_NUM_POINTS_TO_DISPLAY} accelerometer points.`);
     const dataQuery = query(
-      ref(database, '/accelerometer'), // Ensure path is correct!
+      ref(database, '/accelerometer'),
       orderByChild('timestamp'),
       limitToLast(FIXED_NUM_POINTS_TO_DISPLAY)
     );
 
     const handleDataUpdate = (snapshot: DataSnapshot) => {
       console.log("Live accelerometer data received from Firebase.");
-      const data = snapshot.val() as AccelDataFirebase | null; // Assert type
+      const data = snapshot.val() as AccelDataFirebase | null; 
 
       if (data && typeof data === 'object') {
         const labels: string[] = [];
@@ -249,7 +249,6 @@ export default function Home() {
     };
   }
 
-  // *** THIS IS THE CORRECTED FUNCTION ***
   const formatReport = (stats: StatsResult, rangeMins: number): string => {
     if (stats.count === 0) {
         return "No data found for the selected time range.";
@@ -260,13 +259,10 @@ export default function Home() {
         return "Error: Invalid stats object.";
     }
 
-    // Now TypeScript knows stats is of type ReportStats here
     const startTime = new Date(stats.firstTimestamp * 1000).toLocaleString();
     const endTime = new Date(stats.lastTimestamp * 1000).toLocaleString();
-    // Helper function for formatting numbers consistently
     const f = (num: number): string => num.toFixed(4).padEnd(12);
 
-    // Use template literals correctly to build the full report string
     return `Accelerometer Data Report
 -----------------------------
 Time Range:          Last ${rangeMins} minutes (approx.)
@@ -280,7 +276,6 @@ Y    | ${f(stats.y.min)} | ${f(stats.y.max)} | ${stats.y.mean.toFixed(4)}
 Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
 -----------------------------`;
   }
-  // *** END OF CORRECTED FUNCTION ***
 
 
  const downloadReport = (reportContent: string, rangeMins: number): void => {
@@ -320,7 +315,7 @@ Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
 
 
   // --- Chart Configuration ---
-  const options = { // Type: ChartOptions<'line'> can be added
+  const options = { 
     responsive: true, maintainAspectRatio: true,
     plugins: { legend: { position: 'top' as const, }, title: { display: true, text: 'Accelerometer Data Over Time', } },
     scales: { x: { title: { display: true, text: 'Time' } }, y: { title: { display: true, text: 'Value' } } },
@@ -336,7 +331,7 @@ Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
       <div style={{ margin: '20px 0', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
         <label htmlFor="interval" style={{ marginRight: '10px' }}>Set Backend Update Interval (seconds):</label>
         <input type="number" id="interval" value={newInterval}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setNewInterval(e.target.value)} // Typed event
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setNewInterval(e.target.value)}
           min="0.1" step="0.1"
           style={{ marginRight: '10px', padding: '8px', border: '1px solid #ccc', borderRadius: '3px' }} />
         <button onClick={handleIntervalUpdate} style={{ padding: '8px 15px', cursor: 'pointer' }}>Set Interval</button>

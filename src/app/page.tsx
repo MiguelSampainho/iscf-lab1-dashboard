@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client"; // Required for hooks like useState, useEffect in App Router
 
-import React, { useState, useEffect, ChangeEvent } from 'react'; // Removed MouseEvent import
+import React, { useState, useEffect, ChangeEvent } from 'react'; // Corrected React import
 import { database } from '../../lib/firebase'; // Adjust path if needed
 // Import Firebase functions needed for reading and writing
 import { ref, onValue, off, query, orderByChild, limitToLast, get, set, startAt, DataSnapshot } from 'firebase/database';
@@ -232,7 +232,7 @@ export default function Home(): JSX.Element {
     let minZ = Infinity, maxZ = -Infinity, sumZ = 0;
     let count = 0, firstTimestamp = Infinity, lastTimestamp = -Infinity;
     Object.values(data).forEach((entry: AccelEntry) => {
-      if (entry && typeof entry.x === 'number' && typeof entry.y === 'number' && typeof entry.z === 'number' && typeof entry.timestamp === 'number') {
+       if (entry && typeof entry.x === 'number' && typeof entry.y === 'number' && typeof entry.z === 'number' && typeof entry.timestamp === 'number') {
         minX = Math.min(minX, entry.x); maxX = Math.max(maxX, entry.x); sumX += entry.x;
         minY = Math.min(minY, entry.y); maxY = Math.max(maxY, entry.y); sumY += entry.y;
         minZ = Math.min(minZ, entry.z); maxZ = Math.max(maxZ, entry.z); sumZ += entry.z;
@@ -249,14 +249,39 @@ export default function Home(): JSX.Element {
     };
   }
 
+  // *** THIS IS THE CORRECTED FUNCTION ***
   const formatReport = (stats: StatsResult, rangeMins: number): string => {
-    if (stats.count === 0) return "No data found for the selected time range.";
-    if (!('firstTimestamp' in stats)) return "Error: Invalid stats object.";
+    if (stats.count === 0) {
+        return "No data found for the selected time range.";
+    }
+    // Type guard to ensure we have ReportStats properties
+    if (!('firstTimestamp' in stats)) {
+        console.error("Invalid stats object passed to formatReport:", stats);
+        return "Error: Invalid stats object.";
+    }
+
+    // Now TypeScript knows stats is of type ReportStats here
     const startTime = new Date(stats.firstTimestamp * 1000).toLocaleString();
     const endTime = new Date(stats.lastTimestamp * 1000).toLocaleString();
+    // Helper function for formatting numbers consistently
     const f = (num: number): string => num.toFixed(4).padEnd(12);
-    return `Accelerometer Data Report...`; // Keep formatting as before
+
+    // Use template literals correctly to build the full report string
+    return `Accelerometer Data Report
+-----------------------------
+Time Range:          Last ${rangeMins} minutes (approx.)
+Data Period Covered: ${startTime} to ${endTime}
+Data Points Found:   ${stats.count}
+-----------------------------
+Axis | Minimum      | Maximum      | Mean
+-----------------------------
+X    | ${f(stats.x.min)} | ${f(stats.x.max)} | ${stats.x.mean.toFixed(4)}
+Y    | ${f(stats.y.min)} | ${f(stats.y.max)} | ${stats.y.mean.toFixed(4)}
+Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
+-----------------------------`;
   }
+  // *** END OF CORRECTED FUNCTION ***
+
 
  const downloadReport = (reportContent: string, rangeMins: number): void => {
     const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });

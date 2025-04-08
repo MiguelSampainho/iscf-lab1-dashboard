@@ -93,7 +93,7 @@ type LineChartData = ChartData<'line', number[], string>;
 
 // --- React Component ---
 
-export default function Home(): JSX.Element {
+export default function Home() {
   // State for chart data format
   const [chartData, setChartData] = useState<LineChartData>({
     labels: [],

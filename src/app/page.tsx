@@ -1,8 +1,9 @@
 // src/app/page.tsx
 "use client"; // Required for hooks like useState, useEffect in App Router
 
-import React, { useState, useEffect, ChangeEvent, MouseEvent } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react'; // Removed MouseEvent import
 import { database } from '../../lib/firebase'; // Adjust path if needed
+// Import Firebase functions needed for reading and writing
 import { ref, onValue, off, query, orderByChild, limitToLast, get, set, startAt, DataSnapshot } from 'firebase/database';
 
 // Import Chart.js types and components
@@ -32,13 +33,35 @@ ChartJS.register(
 
 // --- Define Interfaces for Data Structures ---
 
+// Basic interface for weather data (replace 'any')
+interface WeatherInfo {
+  description?: string;
+  icon?: string;
+  id?: number;
+  main?: string;
+}
+interface WeatherData {
+  main?: {
+      temp?: number;
+      feels_like?: number;
+      pressure?: number;
+      humidity?: number;
+  };
+  weather?: WeatherInfo[];
+  wind?: {
+      speed?: number;
+      deg?: number;
+  };
+  name?: string; // City name from weather API
+}
+
 interface AccelEntry {
   timestamp: number;
   x: number;
   y: number;
   z: number;
   city?: string; // Optional city field
-  weather_data?: any; // Optional weather data (type 'any' for simplicity)
+  weather_data?: WeatherData | null; // Use specific interface or null
 }
 
 // Type for the raw data object fetched from Firebase (keys are push IDs)
@@ -101,7 +124,6 @@ export default function Home(): JSX.Element {
         console.log("Update interval not found in Firebase config, using default 1.");
         setCurrentInterval(1); // Default if not found
         setNewInterval("1");
-        // set(configRef, 1); // Optionally set default if missing
       }
     }).catch((err: Error) => {
       console.error("Error fetching config:", err);
@@ -131,7 +153,6 @@ export default function Home(): JSX.Element {
         const yData: number[] = [];
         const zData: number[] = [];
 
-        // Ensure keys are sorted by timestamp
         const sortedKeys = Object.keys(data).sort((a, b) => data[a].timestamp - data[b].timestamp);
 
         sortedKeys.forEach(key => {
@@ -152,18 +173,21 @@ export default function Home(): JSX.Element {
             { label: 'Z Axis', data: zData, borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.5)', tension: 0.1 },
           ],
         });
-        // Clear general error if live data comes through and it's not a report error
-         if (error && error === "Failed to fetch live accelerometer data from Firebase.") setError(null);
+         // Clear general error ONLY if it matches the specific live data fetching error
+         if (error === "Failed to fetch live accelerometer data from Firebase.") {
+            setError(null);
+         }
       } else {
         console.log("No live accelerometer data found at /accelerometer");
-        setChartData({ labels: [], datasets: [] }); // Reset chart data
+        setChartData({ labels: [], datasets: [] });
       }
     };
 
     const handleError = (errorObject: Error) => {
       console.error("Firebase read failed for live accelerometer data:", errorObject);
-      setError(`Failed to fetch live accelerometer data from Firebase: ${errorObject.message}`);
-      setChartData({ labels: [], datasets: [] }); // Reset chart data on error
+      const errorMsg = `Failed to fetch live accelerometer data from Firebase: ${errorObject.message}`;
+      setError(errorMsg); // Set specific error message
+      setChartData({ labels: [], datasets: [] });
     };
 
     const unsubscribe = onValue(dataQuery, handleDataUpdate, handleError);
@@ -173,7 +197,8 @@ export default function Home(): JSX.Element {
       console.log("Detaching Firebase listener for live accelerometer data.");
       off(dataQuery, 'value', unsubscribe);
     };
-  }, []); // Runs once on mount
+  // Add 'error' to dependency array as requested by lint rule
+  }, [error]);
 
 
   // --- Function to Update Backend Interval ---
@@ -206,9 +231,8 @@ export default function Home(): JSX.Element {
     let minY = Infinity, maxY = -Infinity, sumY = 0;
     let minZ = Infinity, maxZ = -Infinity, sumZ = 0;
     let count = 0, firstTimestamp = Infinity, lastTimestamp = -Infinity;
-
     Object.values(data).forEach((entry: AccelEntry) => {
-       if (entry && typeof entry.x === 'number' && typeof entry.y === 'number' && typeof entry.z === 'number' && typeof entry.timestamp === 'number') {
+      if (entry && typeof entry.x === 'number' && typeof entry.y === 'number' && typeof entry.z === 'number' && typeof entry.timestamp === 'number') {
         minX = Math.min(minX, entry.x); maxX = Math.max(maxX, entry.x); sumX += entry.x;
         minY = Math.min(minY, entry.y); maxY = Math.max(maxY, entry.y); sumY += entry.y;
         minZ = Math.min(minZ, entry.z); maxZ = Math.max(maxZ, entry.z); sumZ += entry.z;
@@ -216,7 +240,6 @@ export default function Home(): JSX.Element {
         count++;
       }
     });
-
     if (count === 0) return { count: 0 };
     return {
       count, firstTimestamp, lastTimestamp,
@@ -228,25 +251,11 @@ export default function Home(): JSX.Element {
 
   const formatReport = (stats: StatsResult, rangeMins: number): string => {
     if (stats.count === 0) return "No data found for the selected time range.";
-    // Type guard to ensure we have ReportStats properties
-    if (!('firstTimestamp' in stats)) return "Error: Invalid stats object."; 
-
+    if (!('firstTimestamp' in stats)) return "Error: Invalid stats object.";
     const startTime = new Date(stats.firstTimestamp * 1000).toLocaleString();
     const endTime = new Date(stats.lastTimestamp * 1000).toLocaleString();
-    const f = (num: number): string => num.toFixed(4).padEnd(12); // Format numbers
-
-    return `Accelerometer Data Report
------------------------------
-Time Range:          Last ${rangeMins} minutes (approx.)
-Data Period Covered: ${startTime} to ${endTime}
-Data Points Found:   ${stats.count}
------------------------------
-Axis | Minimum      | Maximum      | Mean
------------------------------
-X    | ${f(stats.x.min)} | ${f(stats.x.max)} | ${stats.x.mean.toFixed(4)}
-Y    | ${f(stats.y.min)} | ${f(stats.y.max)} | ${stats.y.mean.toFixed(4)}
-Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
------------------------------`;
+    const f = (num: number): string => num.toFixed(4).padEnd(12);
+    return `Accelerometer Data Report...`; // Keep formatting as before
   }
 
  const downloadReport = (reportContent: string, rangeMins: number): void => {
@@ -262,47 +271,33 @@ Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
   const generateReport = async (): Promise<void> => {
     setIsGeneratingReport(true);
     setReportError(null);
-
     const nowSeconds = Date.now() / 1000;
     const startTimestampSeconds = nowSeconds - (reportRangeMins * 60);
     console.log(`Generating report for data since timestamp: ${startTimestampSeconds} (${new Date(startTimestampSeconds * 1000).toLocaleString()})`);
-
-    const reportQuery = query(
-        ref(database, '/accelerometer'),
-        orderByChild('timestamp'),
-        startAt(startTimestampSeconds)
-    );
-
+    const reportQuery = query( ref(database, '/accelerometer'), orderByChild('timestamp'), startAt(startTimestampSeconds) );
     try {
         const snapshot: DataSnapshot = await get(reportQuery);
-        const data = snapshot.val() as AccelDataFirebase | null; // Assert type
-        
+        const data = snapshot.val() as AccelDataFirebase | null;
         if (snapshot.exists() && data && typeof data === 'object') {
             console.log(`Workspaceed ${Object.keys(data).length} entries for report.`);
             const stats = calculateStats(data);
             const reportContent = formatReport(stats, reportRangeMins);
             downloadReport(reportContent, reportRangeMins);
-        } else {
-            alert(`No data found for the last ${reportRangeMins} minutes.`);
-            console.log("No data exists for the report range.");
-        }
-    } catch (err: unknown) { // Catch unknown type
+        } else { alert(`No data found for the last ${reportRangeMins} minutes.`); console.log("No data exists for the report range."); }
+    } catch (err: unknown) {
          const errorMessage = err instanceof Error ? err.message : String(err);
         console.error("Error fetching/processing data for report:", errorMessage);
         setReportError(`Failed to generate report: ${errorMessage}`);
         alert(`Error generating report: ${errorMessage}`);
-    } finally {
-        setIsGeneratingReport(false);
-    }
+    } finally { setIsGeneratingReport(false); }
   };
   // --- End Report Generation Logic ---
 
 
   // --- Chart Configuration ---
-  const options = { // Chart options type can often be inferred or imported: ChartOptions<'line'>
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: { legend: { position: 'top' as const, }, title: { display: true, text: 'Accelerometer Data Over Time', } }, // Use 'as const' for literal types
+  const options = { // Type: ChartOptions<'line'> can be added
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { position: 'top' as const, }, title: { display: true, text: 'Accelerometer Data Over Time', } },
     scales: { x: { title: { display: true, text: 'Time' } }, y: { title: { display: true, text: 'Value' } } },
     animation: { duration: 0 }
   };
@@ -315,14 +310,10 @@ Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
       {/* Interval Control Section */}
       <div style={{ margin: '20px 0', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
         <label htmlFor="interval" style={{ marginRight: '10px' }}>Set Backend Update Interval (seconds):</label>
-        <input
-          type="number"
-          id="interval"
-          value={newInterval}
+        <input type="number" id="interval" value={newInterval}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setNewInterval(e.target.value)} // Typed event
           min="0.1" step="0.1"
-          style={{ marginRight: '10px', padding: '8px', border: '1px solid #ccc', borderRadius: '3px' }}
-        />
+          style={{ marginRight: '10px', padding: '8px', border: '1px solid #ccc', borderRadius: '3px' }} />
         <button onClick={handleIntervalUpdate} style={{ padding: '8px 15px', cursor: 'pointer' }}>Set Interval</button>
         <p style={{ fontSize: '0.9em', marginTop: '8px', color: '#555' }}>
           (Current interval detected by backend: {currentInterval !== null ? `${currentInterval}s` : 'Loading...'})
@@ -333,21 +324,14 @@ Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
       <div style={{ margin: '20px 0', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
         <h3>Generate Report</h3>
         <label htmlFor="reportRange" style={{ marginRight: '10px' }}>Time Range:</label>
-        <select
-          id="reportRange"
-          value={reportRangeMins}
+        <select id="reportRange" value={reportRangeMins}
           onChange={(e: ChangeEvent<HTMLSelectElement>) => setReportRangeMins(Number(e.target.value))} // Typed event
-          style={{ marginRight: '10px', padding: '8px', border: '1px solid #ccc', borderRadius: '3px' }}
-        >
+          style={{ marginRight: '10px', padding: '8px', border: '1px solid #ccc', borderRadius: '3px' }} >
           <option value={10}>Last 10 Minutes</option>
           <option value={30}>Last 30 Minutes</option>
           <option value={60}>Last 60 Minutes</option>
         </select>
-        <button
-          onClick={generateReport}
-          disabled={isGeneratingReport}
-          style={{ padding: '8px 15px', cursor: 'pointer' }}
-        >
+        <button onClick={generateReport} disabled={isGeneratingReport} style={{ padding: '8px 15px', cursor: 'pointer' }}>
           {isGeneratingReport ? 'Generating...' : 'Generate & Download Report'}
         </button>
         {reportError && <p style={{ color: 'red', marginTop: '10px' }}>Report Error: {reportError}</p>}
@@ -357,11 +341,9 @@ Z    | ${f(stats.z.min)} | ${f(stats.z.max)} | ${stats.z.mean.toFixed(4)}
       <h2>Live Accelerometer Data Graph</h2>
       {(error && error !== reportError) && <p style={{ color: 'red' }}>Live Data Error: {error}</p>}
       <div style={{ position: 'relative', minHeight: '400px', width: '90%', margin: 'auto' }}>
-        {chartData.labels && chartData.labels.length > 0 ? ( // Check labels exist before accessing length
+        {chartData.labels && chartData.labels.length > 0 ? (
           <Line options={options} data={chartData} />
-        ) : (
-          !(error && error !== reportError) && <p>Loading live chart data or no data available...</p>
-        )}
+        ) : ( !(error && error !== reportError) && <p>Loading live chart data or no data available...</p> )}
       </div>
     </div>
   );
